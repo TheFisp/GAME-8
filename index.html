@@ -250,22 +250,27 @@
             }
         });
 
-        function checkEndGame(force = false) {
-            if (force || (lastNoteIdx >= noteTimestamps.length && activeNotes.length === 0)) {
-                gameActive = false;
-                gameMusic.pause();
-
-                if (score >= 50) {
-                    gameContainer.classList.add('hidden');
-                    ui.classList.add('hidden');
-                    victoryScreen.classList.remove('hidden');
-                    document.getElementById('final-score').innerText = score + " / " + noteTimestamps.length;
-                } else {
-                    alert(`Hai fatto ${score} punti. Te ne servono 50! Riprova.`);
-                    location.reload();
-                }
-            }
+       function checkEndGame(force = false) {
+    // Se vuoi che il gioco NON finisca mai da solo, 
+    // commentiamo la condizione di chiusura automatica.
+    
+    if (force) {
+        // Se forziamo la fine (es. la musica finisce), 
+        // controlliamo se il giocatore ha vinto
+        if (score >= 50) {
+            gameActive = false;
+            // gameMusic.pause(); // Commenta questa riga se vuoi che la musica continui
+            
+            gameContainer.classList.add('hidden');
+            ui.classList.add('hidden');
+            victoryScreen.classList.remove('hidden');
+            document.getElementById('final-score').innerText = score + " / " + noteTimestamps.length;
+        } else {
+            // Se non ha raggiunto 50, non facciamo nulla o diamo un avviso
+            console.log("Canzone finita, ma punteggio insufficiente.");
         }
+    }
+}
     </script>
 </body>
 </html>
