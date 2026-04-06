@@ -1,1 +1,271 @@
-# GAME-8
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrow Hero - Towers Of Eden</title>
+    <style>
+        :root {
+            --bg-color: #7F37CB;
+            --accent: #FFD700;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            font-family: 'Montserrat', sans-serif;
+            color: white;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hidden { display: none !important; }
+
+        #game-container {
+            position: relative;
+            width: 450px;
+            height: 100vh;
+            background: rgba(0,0,0,0.4);
+            border-left: 3px solid var(--accent);
+            border-right: 3px solid var(--accent);
+            display: flex;
+        }
+
+        .lane {
+            flex: 1;
+            position: relative;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .target-zone {
+            position: absolute;
+            bottom: 60px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .target-circle {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 900;
+            transition: all 0.1s;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .target-circle.active {
+            transform: scale(1.2);
+            background-color: var(--accent);
+            border-color: white;
+            color: #2c3e50;
+        }
+
+        .note {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 20px var(--accent);
+            z-index: 5;
+        }
+
+        #ui {
+            position: fixed;
+            top: 20px;
+            font-size: 2rem;
+            font-weight: 900;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #2c3e50;
+            border: none;
+            padding: 20px 50px;
+            font-size: 1.8rem;
+            font-weight: 900;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #b79b00;
+        }
+
+        #victory-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="ui" class="hidden">SCORE: <span id="score">0</span> / <span id="total-req">70</span></div>
+
+    <div id="start-screen">
+        <h1 style="font-size: 3.5rem; text-align: center;">TOWERS OF EDEN</h1>
+        <button class="btn" onclick="startGame()">INIZIA</button>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <div class="lane" id="lane-0"><div class="target-zone"><div class="target-circle" id="t-0">←</div></div></div>
+        <div class="lane" id="lane-1"><div class="target-zone"><div class="target-circle" id="t-1">↑</div></div></div>
+        <div class="lane" id="lane-2"><div class="target-zone"><div class="target-circle" id="t-2">↓</div></div></div>
+        <div class="lane" id="lane-3"><div class="target-zone"><div class="target-circle" id="t-3">→</div></div></div>
+    </div>
+
+    <div id="victory-screen" class="hidden">
+        <h1 style="color: var(--accent); font-size: 4rem; margin-bottom: 10px;">HAI VINTO!</h1>
+        <p style="font-size: 1.5rem; margin-bottom: 30px;">Punteggio: <span id="final-score"></span></p>
+        <div style="background:rgba(255,255,255,0.1); padding:30px; border-radius:20px; max-width: 80%; text-align: center;">
+            <strong>Il tuo indizio:</strong><br>
+            Sei brava con i puzzle, adesso però hai degli omicidi supernaturali da risolvere.
+        </div>
+        <br><br>
+        <button class="btn" onclick="location.reload()">RIGIOCA</button>
+    </div>
+
+    <script>
+        const gameMusic = new Audio("13. Towers Of Eden.mp3");
+        
+        const gameContainer = document.getElementById('game-container');
+        const startScreen = document.getElementById('start-screen');
+        const victoryScreen = document.getElementById('victory-screen');
+        const scoreEl = document.getElementById('score');
+        const ui = document.getElementById('ui');
+
+        let score = 0;
+        let activeNotes = [];
+        let gameActive = false;
+        
+        // PARAMETRI RITMO
+        const noteSpeed = 7; // Velocità di caduta
+        const targetY = window.innerHeight - 120; // Punto di impatto
+        // Tempo impiegato dalla nota per arrivare al traguardo (ms)
+        const travelTime = (targetY + 60) / noteSpeed * (1000 / 60); 
+
+        // Genera 70 note a ritmo (es. ogni 1 secondo, regola a piacimento)
+        const noteTimestamps = [];
+        for(let i=1; i<=70; i++) {
+            noteTimestamps.push(i * 1.0); // Una nota ogni secondo
+        }
+        document.getElementById('total-req').innerText = noteTimestamps.length;
+
+        const keyMap = { "ArrowLeft": 0, "ArrowUp": 1, "ArrowDown": 2, "ArrowRight": 3 };
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            ui.classList.remove('hidden');
+            gameActive = true;
+            
+            gameMusic.play().catch(e => alert("Assicurati che il file mp3 sia nella cartella!"));
+            gameLoop();
+        }
+
+        function createNote(laneIndex) {
+            const laneEl = document.getElementById(`lane-${laneIndex}`);
+            const noteEl = document.createElement('div');
+            noteEl.className = 'note';
+            noteEl.style.top = '-60px';
+            laneEl.appendChild(noteEl);
+            activeNotes.push({ el: noteEl, lane: laneIndex, y: -60 });
+        }
+
+        let lastNoteIdx = 0;
+
+        function gameLoop() {
+            if (!gameActive) return;
+
+            const currentTime = gameMusic.currentTime;
+
+            // SPAWN LOGIC: Controlla se è il momento di spawnare una nota
+            // Spawna la nota un po' prima (travelTime) affinché arrivi a ritmo
+            if (lastNoteIdx < noteTimestamps.length) {
+                const nextNoteTime = noteTimestamps[lastNoteIdx];
+                if (currentTime >= nextNoteTime - (travelTime / 1000)) {
+                    createNote(Math.floor(Math.random() * 4));
+                    lastNoteIdx++;
+                }
+            }
+
+            // MOVE LOGIC
+            for (let i = activeNotes.length - 1; i >= 0; i--) {
+                const note = activeNotes[i];
+                note.y += noteSpeed;
+                note.el.style.top = note.y + 'px';
+
+                if (note.y > window.innerHeight) {
+                    note.el.remove();
+                    activeNotes.splice(i, 1);
+                    checkEndGame();
+                }
+            }
+
+            // Se la musica finisce o le note sono finite
+            if (gameMusic.ended || (lastNoteIdx >= noteTimestamps.length && activeNotes.length === 0)) {
+                checkEndGame(true);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            const lane = keyMap[e.key];
+            if (lane === undefined) return;
+
+            const target = document.getElementById(`t-${lane}`);
+            target.classList.add('active');
+            setTimeout(() => target.classList.remove('active'), 100);
+
+            for (let i = 0; i < activeNotes.length; i++) {
+                const note = activeNotes[i];
+                if (note.lane === lane) {
+                    const distance = Math.abs(note.y - targetY);
+                    if (distance < 60) {
+                        score++;
+                        scoreEl.innerText = score;
+                        note.el.remove();
+                        activeNotes.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        });
+
+        function checkEndGame(force = false) {
+            if (force || (lastNoteIdx >= noteTimestamps.length && activeNotes.length === 0)) {
+                gameActive = false;
+                gameMusic.pause();
+
+                if (score >= 50) {
+                    gameContainer.classList.add('hidden');
+                    ui.classList.add('hidden');
+                    victoryScreen.classList.remove('hidden');
+                    document.getElementById('final-score').innerText = score + " / " + noteTimestamps.length;
+                } else {
+                    alert(`Hai fatto ${score} punti. Te ne servono 50! Riprova.`);
+                    location.reload();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
