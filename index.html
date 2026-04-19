@@ -3,274 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAME 8</title>
+    <title>Anime Quiz</title>
     <style>
         :root {
-            --bg-color: #7F37CB;
-            --accent: #FFD700;
+            --bg-color: #1a1a1a;
+            --success-green: #2ecc71;
+            --error-red: #e74c3c;
         }
 
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
             background-color: var(--bg-color);
-            font-family: 'Montserrat', sans-serif;
             color: white;
-            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        .hidden { display: none !important; }
-
-        #game-container {
-            position: relative;
-            width: 450px;
             height: 100vh;
-            background: rgba(0,0,0,0.4);
-            border-left: 3px solid var(--accent);
-            border-right: 3px solid var(--accent);
-            display: flex;
+            overflow: hidden;
+            transition: background-color 0.4s;
         }
 
-        .lane {
-            flex: 1;
-            position: relative;
-            border-right: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .target-zone {
-            position: absolute;
-            bottom: 60px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        .target-circle {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 2rem;
-            font-weight: 900;
-            transition: all 0.1s;
-            background: rgba(0,0,0,0.2);
         }
 
-        .target-circle.active {
-            transform: scale(1.2);
-            background-color: var(--accent);
-            border-color: white;
-            color: #2c3e50;
-        }
-
-        .note {
-            position: absolute;
-            width: 55px;
-            height: 55px;
-            background-color: var(--accent);
-            border-radius: 50%;
-            left: 50%;
-            transform: translateX(-50%);
-            box-shadow: 0 0 20px var(--accent);
-            z-index: 5;
-        }
-
-        #ui {
-            position: fixed;
-            top: 20px;
-            font-size: 2rem;
-            font-weight: 900;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .btn {
-            background: var(--accent);
-            color: #2c3e50;
-            border: none;
+        button {
             padding: 20px 50px;
-            font-size: 1.8rem;
-            font-weight: 900;
-            border-radius: 50px;
+            font-size: 1.5rem;
             cursor: pointer;
-            box-shadow: 0 8px 0 #b79b00;
+            background: white;
+            color: black;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
         }
 
-        #victory-screen {
+        #reveal-btn { display: none; z-index: 101; }
+
+        #game-container { text-align: center; width: 90%; max-width: 700px; z-index: 10; }
+        #quiz-section { display: none; }
+        
+        .quote-text { font-size: 2.2rem; margin-bottom: 30px; font-weight: 800; min-height: 100px; text-transform: uppercase; }
+        input { padding: 15px; font-size: 1.3rem; width: 100%; max-width: 400px; text-align: center; background: transparent; border: 3px solid white; color: white; outline: none; }
+
+        #win-section {
+            display: none;
             position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            text-align: center;
+            width: 100%;
         }
+
+        .win-title {
+            font-size: 5rem; color: #FFD700;
+            margin: 0; font-weight: 900;
+            animation: sway 2.5s ease-in-out infinite;
+        }
+
+        .win-subtitle { font-style: italic; margin-top: 25px; font-size: 1.3rem; opacity: 0.9; padding: 0 30px; }
+
+        @keyframes sway {
+            0%, 100% { transform: translateX(-25px) rotate(-1.5deg); }
+            50% { transform: translateX(25px) rotate(1.5deg); }
+        }
+
+        canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 150; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div id="ui" class="hidden">SCORE: <span id="score">0</span> / <span id="total-req">70</span></div>
+    <canvas id="confetti-canvas"></canvas>
 
-    <div id="start-screen">
-        <h1 style="font-size: 3.5rem; text-align: center;">TOWERS OF EDEN</h1>
-        <button class="btn" onclick="startGame()">INIZIA</button>
+    <div id="overlay">
+        <button id="start-btn">INIZIA</button>
+        <button id="reveal-btn">RIVELA IL FINALE</button>
     </div>
 
-    <div id="game-container" class="hidden">
-        <div class="lane" id="lane-0"><div class="target-zone"><div class="target-circle" id="t-0">←</div></div></div>
-        <div class="lane" id="lane-1"><div class="target-zone"><div class="target-circle" id="t-1">↑</div></div></div>
-        <div class="lane" id="lane-2"><div class="target-zone"><div class="target-circle" id="t-2">↓</div></div></div>
-        <div class="lane" id="lane-3"><div class="target-zone"><div class="target-circle" id="t-3">→</div></div></div>
-    </div>
-
-    <div id="victory-screen" class="hidden">
-        <h1 style="color: var(--accent); font-size: 4rem; margin-bottom: 10px;">HAI VINTO!</h1>
-        <p style="font-size: 1.5rem; margin-bottom: 30px;">Punteggio: <span id="final-score"></span></p>
-        <div style="background:rgba(255,255,255,0.1); padding:30px; border-radius:20px; max-width: 80%; text-align: center;">
-            <strong>Il tuo indizio:</strong><br>
-           Ottima Coordinazione, potrebbe tornarti utile. 🪨
+    <div id="game-container">
+        <div id="quiz-section">
+            <div id="quote-display" class="quote-text"></div>
+            <input type="text" id="answer-input" placeholder="SCRIVI IL NOME..." autocomplete="off">
         </div>
-        <br><br>
-        <button class="btn" onclick="location.reload()">RIGIOCA</button>
+    </div>
+
+    <div id="win-section">
+        <h1 class="win-title">HAI VINTO</h1>
+        <p class="win-subtitle">I wish I could stay in this moment forever. (...) But then it wouldn't be a moment.</p>
     </div>
 
     <script>
-        const gameMusic = new Audio("13. Towers Of Eden.mp3");
-        
-        const gameContainer = document.getElementById('game-container');
-        const startScreen = document.getElementById('start-screen');
-        const victoryScreen = document.getElementById('victory-screen');
-        const scoreEl = document.getElementById('score');
-        const ui = document.getElementById('ui');
+        // Configurazione citazioni
+        const quotes = [
+            { text: "DEDICATE I VOSTRI CUORI", author: "Erwin Smith" },
+            { text: "Non confondere la mia calma con debolezza", author: "Kratos" },
+            { text: "Il lavoro è una merda", author: "Nanami" },
+            { text: "Gli umani non sono altro che scimmie.", author: "Suguru Geto" },
+            { text: "Ryūjin no ken wo kurae", author: "Genji" },
+            { text: "You’re gonna have a bad time.", author: "Sans" },
+            { text: "Power comes to those who take it.", author: "Silco" }
+        ];
 
-        let score = 0;
-        let activeNotes = [];
-        let gameActive = false;
-        
-        // PARAMETRI RITMO
-        const noteSpeed = 7; // Velocità di caduta
-        const targetY = window.innerHeight - 120; // Punto di impatto
-        // Tempo impiegato dalla nota per arrivare al traguardo (ms)
-        const travelTime = (targetY + 60) / noteSpeed * (1000 / 60); 
+        let currentIndex = 0;
 
-        // Genera 70 note a ritmo (es. ogni 1 secondo, regola a piacimento)
-        const noteTimestamps = [];
-        for(let i=1; i<=70; i++) {
-            noteTimestamps.push(i * 1.0); // Una nota ogni secondo
-        }
-        document.getElementById('total-req').innerText = noteTimestamps.length;
+        // --- GESTIONE AUDIO ---
+        const audio = new Audio("vittoria.mp3");
+        audio.preload = "auto";
 
-        const keyMap = { "ArrowLeft": 0, "ArrowUp": 1, "ArrowDown": 2, "ArrowRight": 3 };
+        // Elementi DOM
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+        const revealBtn = document.getElementById('reveal-btn');
+        const quizSection = document.getElementById('quiz-section');
+        const quoteDisplay = document.getElementById('quote-display');
+        const answerInput = document.getElementById('answer-input');
+        const winSection = document.getElementById('win-section');
 
-        function startGame() {
-            startScreen.classList.add('hidden');
-            gameContainer.classList.remove('hidden');
-            ui.classList.remove('hidden');
-            gameActive = true;
-            
-            gameMusic.play().catch(e => alert("Assicurati che il file mp3 sia nella cartella!"));
-            gameLoop();
-        }
+        // Tasto INIZIA
+        startBtn.onclick = function() {
+            overlay.style.display = 'none';
+            startBtn.style.display = 'none';
+            quizSection.style.display = 'block';
+            answerInput.focus();
+            showQuote();
+        };
 
-        function createNote(laneIndex) {
-            const laneEl = document.getElementById(`lane-${laneIndex}`);
-            const noteEl = document.createElement('div');
-            noteEl.className = 'note';
-            noteEl.style.top = '-60px';
-            laneEl.appendChild(noteEl);
-            activeNotes.push({ el: noteEl, lane: laneIndex, y: -60 });
-        }
-
-        let lastNoteIdx = 0;
-
-        function gameLoop() {
-            if (!gameActive) return;
-
-            const currentTime = gameMusic.currentTime;
-
-            // SPAWN LOGIC: Controlla se è il momento di spawnare una nota
-            // Spawna la nota un po' prima (travelTime) affinché arrivi a ritmo
-            if (lastNoteIdx < noteTimestamps.length) {
-                const nextNoteTime = noteTimestamps[lastNoteIdx];
-                if (currentTime >= nextNoteTime - (travelTime / 1000)) {
-                    createNote(Math.floor(Math.random() * 4));
-                    lastNoteIdx++;
-                }
+        function showQuote() {
+            if (currentIndex < quotes.length) {
+                quoteDisplay.textContent = quotes[currentIndex].text;
+                answerInput.value = "";
+                document.body.style.backgroundColor = "var(--bg-color)";
             }
-
-            // MOVE LOGIC
-            for (let i = activeNotes.length - 1; i >= 0; i--) {
-                const note = activeNotes[i];
-                note.y += noteSpeed;
-                note.el.style.top = note.y + 'px';
-
-                if (note.y > window.innerHeight) {
-                    note.el.remove();
-                    activeNotes.splice(i, 1);
-                    checkEndGame();
-                }
-            }
-
-            // Se la musica finisce o le note sono finite
-            if (gameMusic.ended || (lastNoteIdx >= noteTimestamps.length && activeNotes.length === 0)) {
-                checkEndGame(true);
-            }
-
-            requestAnimationFrame(gameLoop);
         }
 
-        window.addEventListener('keydown', (e) => {
-            if (!gameActive) return;
-            const lane = keyMap[e.key];
-            if (lane === undefined) return;
+        answerInput.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                const ans = answerInput.value.trim().toLowerCase();
+                const target = quotes[currentIndex].author.toLowerCase();
 
-            const target = document.getElementById(`t-${lane}`);
-            target.classList.add('active');
-            setTimeout(() => target.classList.remove('active'), 100);
-
-            for (let i = 0; i < activeNotes.length; i++) {
-                const note = activeNotes[i];
-                if (note.lane === lane) {
-                    const distance = Math.abs(note.y - targetY);
-                    if (distance < 60) {
-                        score++;
-                        scoreEl.innerText = score;
-                        note.el.remove();
-                        activeNotes.splice(i, 1);
-                        break;
+                if (ans === target) {
+                    document.body.style.backgroundColor = "var(--success-green)";
+                    currentIndex++;
+                    if (currentIndex >= quotes.length) {
+                        prepareFinalStep();
+                    } else {
+                        setTimeout(showQuote, 500);
                     }
+                } else {
+                    document.body.style.backgroundColor = "var(--error-red)";
+                    quoteDisplay.textContent = "";
+                    setTimeout(() => {
+                        quoteDisplay.textContent = quotes[currentIndex].text;
+                        document.body.style.backgroundColor = "var(--bg-color)";
+                        answerInput.value = "";
+                    }, 600);
                 }
             }
-        });
+        };
 
-       function checkEndGame(force = false) {
-    // Se vuoi che il gioco NON finisca mai da solo, 
-    // commentiamo la condizione di chiusura automatica.
-    
-    if (force) {
-        // Se forziamo la fine (es. la musica finisce), 
-        // controlliamo se il giocatore ha vinto
-        if (score >= 50) {
-            gameActive = false;
-            // gameMusic.pause(); // Commenta questa riga se vuoi che la musica continui
-            
-            gameContainer.classList.add('hidden');
-            ui.classList.add('hidden');
-            victoryScreen.classList.remove('hidden');
-            document.getElementById('final-score').innerText = score + " / " + noteTimestamps.length;
-        } else {
-            // Se non ha raggiunto 50, non facciamo nulla o diamo un avviso
-            console.log("Canzone finita, ma punteggio insufficiente.");
+        function prepareFinalStep() {
+            quizSection.style.display = 'none';
+            overlay.style.display = 'flex';
+            overlay.style.background = "rgba(0,0,0,0.85)";
+            revealBtn.style.display = 'block';
         }
-    }
-}
+
+        // Tasto RIVELA IL FINALE
+        revealBtn.onclick = function() {
+            revealBtn.style.display = 'none';
+            winSection.style.display = 'block';
+            
+            // Prova a far partire l'audio, se fallisce scrive l'errore in console ma non blocca il resto
+            audio.play().catch(err => {
+                console.log("Audio non trovato o bloccato, ma il gioco continua!");
+            });
+            
+            startConfetti();
+        };
+
+        // Funzione Coriandoli
+        function startConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let particles = Array.from({length:150}, () => ({
+                x: Math.random()*canvas.width, y: -20, 
+                r: Math.random()*6+4, c: `hsl(${Math.random()*360}, 80%, 60%)`,
+                s: Math.random()*3+2, t: Math.random()*10
+            }));
+            function draw() {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                particles.forEach(p => {
+                    p.y += p.s; p.t += 0.1;
+                    if(p.y > canvas.height) p.y = -20;
+                    ctx.fillStyle = p.c; ctx.beginPath();
+                    ctx.arc(p.x + Math.sin(p.t)*10, p.y, p.r, 0, 7); ctx.fill();
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
     </script>
 </body>
 </html>
